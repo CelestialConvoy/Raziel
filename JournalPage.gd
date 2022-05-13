@@ -25,8 +25,10 @@ func interact():
 		if Input.is_action_just_pressed("ui_accept"):
 			collected = true
 			DataManager.data["Objects"][name] = true
-			JournalEntries.entry_left[page_num] = text
-			JournalEntries.entry_right[page_num] = text2
+			if text != "":
+				JournalEntries.entry_left[page_num] = text
+			if text2 != "":
+				JournalEntries.entry_right[page_num] = text2
 			monitorable = false
 			monitoring = false
 			$Sprite.visible = false
@@ -46,5 +48,9 @@ func _on_JournalPage_area_exited(area):
 
 
 func _on_TextFade_timeout():
-	$CanvasLayer/Popup.visible = false
-	
+	$CanvasLayer/AnimationPlayer.play("Fade")
+
+
+func _on_AnimationPlayer_animation_finished(anim_name):
+	if anim_name == "Fade":
+		$CanvasLayer/Popup.visible = false

@@ -37,9 +37,11 @@ func _process(delta):
 			if Input.is_action_just_pressed("ui_accept"):
 				label.percent_visible = 1.0
 				$Tween.remove_all()
-				end_symbol.text = "C"
+				end_symbol.text = "Enter"
+				$AudioStreamPlayer.stop()
 				change_state(State.FINISHED)
 		State.FINISHED:
+			$AudioStreamPlayer.stop()
 			if Input.is_action_just_pressed("ui_accept"):
 				change_state(State.READY)
 
@@ -66,6 +68,7 @@ func display_text():
 	show_textbox()
 	$Tween.interpolate_property(label, "percent_visible", 0.0, 1.0, len(next_text) * CHAR_READ_RATE, Tween.TRANS_LINEAR, Tween.EASE_IN_OUT)
 	$Tween.start()
+	$AudioStreamPlayer.play()
 
 
 func _on_Tween_tween_completed(object, key):

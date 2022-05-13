@@ -32,9 +32,13 @@ var can_dodge = true
 var can_move = true
 var input_vector = velocity
 var game_over = false
-var start_position = Vector2(-266, -207)
-var checkpoint_position = Vector2(-266, -207)
+var start_position = Vector2(-274, -543)
+var checkpoint_position = Vector2(-274, -543)
 var journal_open = false
+var controllable = true
+var key_count = 0
+var can_interact = false
+
 
 var life_count = 2
 
@@ -88,6 +92,7 @@ func load_data():
 		life_count = player_data["lives"]
 		current_health = player_data["Health"]
 		checkpoint_position = player_data["Checkpoint"]
+		key_count = player_data["Keys"]
 		print(checkpoint_position)
 		StatsManager.abilities = player_data["Abilities"]
 	if DataManager.scene_change == "Respawn":
@@ -96,19 +101,22 @@ func load_data():
 		current_health = max_health
 		checkpoint_position = player_data["Checkpoint"]
 		StatsManager.abilities = player_data["Abilities"]
+		key_count = player_data["Keys"]
 	if DataManager.scene_change == "GameOver":
 		player_data = DataManager.data["Entities"][name]
 		life_count = 2
 		current_health = max_health
 		checkpoint_position = player_data["Checkpoint"]
 		StatsManager.abilities = player_data["Abilities"]
+		key_count = player_data["Keys"]
 
 func save_data():
 	player_data = {
 		"Health": current_health,
 		"lives": life_count,
 		"Checkpoint": checkpoint_position,
-		"Abilities": StatsManager.abilities
+		"Abilities": StatsManager.abilities,
+		"Keys": key_count
 	}
 	DataManager.data["Entities"][name] = player_data
 	DataManager.save_data()
@@ -116,6 +124,7 @@ func save_data():
 
 func _physics_process(_delta):
 	player_movement()
+	key_check()
 	health_status()
 	stats_check()
 	life_count()
@@ -179,7 +188,9 @@ func life_count():
 func player_movement():
 	if is_dodging == false:
 		velocity.y += GRAVITY
-	if is_dead == false: #Prevents all of the following code from executing if the player dies
+		if velocity.y > MAX_FALL_SPEED:
+			velocity.y = MAX_FALL_SPEED
+	if controllable: #Prevents all of the following code from executing if the player dies
 		var _friction = false
 		$Sprite.scale.x = direction
 		if facing_right == true:
@@ -217,9 +228,6 @@ func player_movement():
 				_friction = true
 		
 		if is_on_floor():
-#			if StatsManager.is_attacking == false:
-#				StatsManager.can_attack = true
-
 			if $Attacks/Cooldown.get_time_left() > 0:
 				StatsManager.can_attack = false
 			else:
@@ -232,7 +240,6 @@ func player_movement():
 				can_dodge = true
 			on_ground = true
 			attack()
-#			crouch()
 			dodge(_friction)
 			jump(_friction)
 		else:
@@ -240,12 +247,10 @@ func player_movement():
 			on_ground = false
 			if _friction == true && is_dodging == false:
 				velocity.x = lerp(velocity.x, 0, 0.025)
-			if velocity.y > MAX_FALL_SPEED:
-				velocity.y = MAX_FALL_SPEED
 			in_air()
 			wall_jump()
 		
-		velocity = move_and_slide(velocity, UP)
+	velocity = move_and_slide(velocity, UP)
 
 func right():
 	if is_attacking == false && is_dodging == false:
@@ -265,29 +270,6 @@ func left():
 		direction = -1
 		if on_ground == true:
 			animation.play("Run_Right")
-
-
-#func crouch():
-#	if Input.is_action_pressed("ui_down") && is_dodging == false && is_attacking == false:
-#		is_crouching = true
-#		can_move = false
-#		$CollisionShape2D.position.y = 3.5
-#		$HurtBox/HurtBox/CollisionShape2D.position.y = 9.5
-#		$CollisionShape2D.scale.y = 0.75
-#		$HurtBox/HurtBox/CollisionShape2D.scale.y = 0.75
-#		velocity.x = lerp(velocity.x, 0, .8)
-#		animation.play("Crouch")
-#		if Input.is_action_just_pressed("ui_left"):
-#			facing_right = false
-#		if Input.is_action_just_pressed("ui_right"):
-#			facing_right = true
-#	else:
-#		is_crouching = false
-#		can_move = true
-#		$CollisionShape2D.scale.y = 1
-#		$HurtBox/HurtBox/CollisionShape2D.scale.y = 1
-#		$CollisionShape2D.position.y = 0
-#		$HurtBox/HurtBox/CollisionShape2D.position.y = 6
 
 
 func jump(friction):
@@ -321,9 +303,6 @@ func wall_jump():
 
 
 func attack():
-#	if Input.is_action_just_pressed("attack") && attack_cooldown_check == true && is_dodging == false:
-#			is_attacking = true
-#			animation.play("Punch_Right")
 	if StatsManager.is_attacking == true:
 		can_move = false
 		$Right.emitting = true
@@ -343,21 +322,12 @@ func attack():
 func dodge(_friction):
 	if Input.is_action_just_pressed("Dodge") && can_dodge == true && is_attacking == false && dodge_cooldown_check == true && !is_on_wall():
 		$HurtBox/HurtBox.monitoring = false
-#		$HurtBox.position.x = 50
-#		friction = false
-#		velocity.y = 0
-#		$Dodge.play()
-#		is_dodging = true
-#		can_move = false
-#		set_collision_mask_bit(3, false)
-#		animation.play("Dodge")
-#		MAX_SPEED = DODGE_FORCE
-#		velocity.x = MAX_SPEED * direction
 		$Dodge_Cooldown.start()
 		change_state(state.DODGING)
 
 func dead():
 	emit_signal("dead")
+	controllable = false
 	is_dead = true
 	life_count -= 1
 	set_deferred("$HurtBox/HurtBox/CollisionShape2D.disabled", true)
@@ -397,10 +367,10 @@ func health_status():
 
 func hit():
 	if is_hit == false && is_dead == false:
+		$Hit.play()
 		change_state(state.HIT)
 #		set_deferred("$HurtBox/HurtBox/CollisionShape2D.disabled", true)
 		$HurtBox/HurtBox.monitoring = false
-#		$HurtBox/HurtBox.monitorable = false
 		$HurtBox.position.y = 1000
 		current_health -= damage
 		is_hit = true
@@ -420,6 +390,14 @@ func squish_detect():
 		$SquishDetect4.enabled = false
 		current_health = 0
 		hit()
+
+func key_check():
+	if can_interact:
+		if Input.is_action_just_pressed("ui_accept") && key_count > 0:
+			DataManager.prison_gate_open = true
+			key_count -= 1
+	if key_count < 1:
+		$Key/Sprite.visible = false
 
 
 func _on_AnimationPlayer_animation_finished(current_animation):
@@ -490,3 +468,13 @@ func _on_HurtBox_area_entered(area):
 		save_data()
 	if area.is_in_group("Abilities"):
 		save_data()
+	if area.is_in_group("DisableInput"):
+		controllable = false
+		velocity.x = 0
+	if area.is_in_group("EnableInput"):
+		controllable = true
+	if area.is_in_group("Key"):
+		key_count += 1
+		$Key/Sprite.visible = true
+	if area.is_in_group("Gate"):
+		can_interact = true

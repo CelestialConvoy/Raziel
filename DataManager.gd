@@ -7,6 +7,9 @@ var current_level
 var level
 var is_fullscreen = false
 var has_data
+var prison_gate_open = false
+var current_audio = 0
+
 
 func _ready():
 	load_data()
